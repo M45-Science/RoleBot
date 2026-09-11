@@ -1,8 +1,8 @@
 package command
 
 import (
-	"RoleKeeper/db"
-	"RoleKeeper/disc"
+	"RoleBot/db"
+	"RoleBot/disc"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -48,7 +48,7 @@ func GetRoles(s *discordgo.Session, i *discordgo.InteractionCreate, guild *db.Gu
 				}
 			}
 		}
-		//Make componet list
+		// Make component list.
 		for _, existing := range userRoles {
 			if existing.ID == role.ID {
 
@@ -118,7 +118,7 @@ func ConfigureBot(s *discordgo.Session, i *discordgo.InteractionCreate, guild *d
 
 	/*
 	 * Cycle through all guild roles, and make a list for the drop-down menu
-	 * First add eligable roles from the guild that aren't in the database
+	 * First add eligible roles from the guild that aren't in the database.
 	 * Then add roles that are in the database, and mark them as selected with a green check
 	 */
 	for _, role := range roles {
@@ -169,7 +169,7 @@ func ConfigureBot(s *discordgo.Session, i *discordgo.InteractionCreate, guild *d
 		availableRoles = append(availableRoles, entry)
 	}
 
-	/* Let user know if there are no eligable roles */
+	/* Let user know if there are no eligible roles. */
 	if len(availableRoles) <= 0 {
 		embed := []*discordgo.MessageEmbed{{
 			Title:       "Error:",

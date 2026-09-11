@@ -1,11 +1,9 @@
 package cfg
 
 import (
-	"RoleKeeper/cons"
-	"RoleKeeper/cwlog"
-	"bytes"
+	"RoleBot/cons"
+	"RoleBot/cwlog"
 	"encoding/json"
-	"io/ioutil"
 	"os"
 )
 
@@ -21,23 +19,14 @@ func WriteCfg() bool {
 	tempPath := cons.ConfigFile + ".tmp"
 	finalPath := cons.ConfigFile
 
-	outbuf := new(bytes.Buffer)
-	enc := json.NewEncoder(outbuf)
-	enc.SetIndent("", "\t")
-
-	if err := enc.Encode(Config); err != nil {
-		cwlog.DoLog("WriteCfg: enc.Encode failure")
-		return false
-	}
-
-	_, err := os.Create(tempPath)
-
+	encBuf, err := json.MarshalIndent(Config, "", "\t")
 	if err != nil {
-		cwlog.DoLog("WriteCfg: os.Create failure")
+		cwlog.DoLog("WriteCfg: marshal failure")
 		return false
 	}
+	outbuf := append(encBuf, '\n')
 
-	err = ioutil.WriteFile(tempPath, outbuf.Bytes(), 0644)
+	err = os.WriteFile(tempPath, outbuf, 0600)
 
 	if err != nil {
 		cwlog.DoLog("WriteCfg: WriteFile failure")
@@ -62,7 +51,7 @@ func ReadCfg() bool {
 		cwlog.DoLog("ReadCfg: os.Stat failed, empty config generated.")
 		return true
 	} else { /* Otherwise just read in the config */
-		file, err := ioutil.ReadFile(cons.ConfigFile)
+		file, err := os.ReadFile(cons.ConfigFile)
 
 		if file != nil && err == nil {
 			newcfg := serverConfig{}

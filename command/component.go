@@ -1,10 +1,10 @@
 package command
 
 import (
-	"RoleKeeper/cons"
-	"RoleKeeper/cwlog"
-	"RoleKeeper/db"
-	"RoleKeeper/disc"
+	"RoleBot/cons"
+	"RoleBot/cwlog"
+	"RoleBot/db"
+	"RoleBot/disc"
 	"fmt"
 	"strings"
 	"time"
@@ -12,7 +12,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func handleComponet(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func handleComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	data := i.MessageComponentData()
 	guild := db.GuildLookupReadString(i.GuildID)
@@ -87,22 +87,9 @@ func handleComponet(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 		}
 	} else if strings.EqualFold(data.CustomID, "config-roles") {
-
-		/* Check moderator privleges */
-		roles := disc.GetGuildRoles(s, i.GuildID)
-		for _, role := range roles {
-			for _, mrole := range i.Member.Roles {
-				if mrole == role.Name {
-					if role.Permissions&(discordgo.PermissionAdministrator|
-						discordgo.PermissionBanMembers|
-						discordgo.PermissionManageRoles|
-						discordgo.PermissionModerateMembers|
-						discordgo.PermissionManageWebhooks|
-						discordgo.PermissionManageServer) == 0 {
-						return /* This user is not a moderator, don't even reply */
-					}
-				}
-			}
+		if !hasPermission(i, discordgo.PermissionManageRoles) {
+			disc.EphemeralResponse(s, i, disc.DiscRed, "ERROR:", "You do not have permission to configure self-assignable roles.", false)
+			return
 		}
 
 		disc.EphemeralResponse(s, i, disc.DiscPurple, "Status:", "Loading role data...", false)

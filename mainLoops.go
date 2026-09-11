@@ -1,8 +1,8 @@
 package main
 
 import (
-	"RoleKeeper/cwlog"
-	"RoleKeeper/glob"
+	"RoleBot/cwlog"
+	"RoleBot/glob"
 	"os"
 	"time"
 )

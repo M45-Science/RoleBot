@@ -1,18 +1,17 @@
 package main
 
 import (
-	"RoleKeeper/cfg"
-	"RoleKeeper/command"
-	"RoleKeeper/cons"
-	"RoleKeeper/cwlog"
-	"RoleKeeper/db"
-	"RoleKeeper/disc"
-	"RoleKeeper/glob"
+	"RoleBot/cfg"
+	"RoleBot/command"
+	"RoleBot/cons"
+	"RoleBot/cwlog"
+	"RoleBot/db"
+	"RoleBot/disc"
+	"RoleBot/glob"
 	"flag"
 	"fmt"
 	"os"
 	"os/signal"
-	"runtime"
 	"strconv"
 	"syscall"
 	"time"
@@ -39,17 +38,24 @@ func main() {
 	glob.DoDeregisterCommands = flag.Bool("deregCommands", false, "Deregister discord commands")
 	flag.Parse()
 
-	db.ThreadCount = runtime.NumCPU()
-
 	glob.Uptime = time.Now().UTC().Round(time.Second)
 	cwlog.StartLog()
 
-	cfg.ReadCfg()
-	cfg.WriteCfg()
+	if !cfg.ReadCfg() {
+		cwlog.DoLog("Configuration is invalid; refusing to overwrite it.")
+		return
+	}
+	if !cfg.WriteCfg() {
+		cwlog.DoLog("Unable to write configuration.")
+		return
+	}
 
 	db.GuildLookup = make(map[uint64]*db.GuildData, cons.TSize)
 
-	db.ReadAllClusters()
+	if !db.ReadAllClusters() {
+		cwlog.DoLog("Database initialization failed.")
+		return
+	}
 	db.UpdateGuildLookup()
 
 	go startbot()

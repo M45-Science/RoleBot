@@ -1,11 +1,11 @@
 package command
 
 import (
-	"RoleKeeper/cfg"
-	"RoleKeeper/cwlog"
-	"RoleKeeper/db"
-	"RoleKeeper/disc"
-	"RoleKeeper/glob"
+	"RoleBot/cfg"
+	"RoleBot/cwlog"
+	"RoleBot/db"
+	"RoleBot/disc"
+	"RoleBot/glob"
 	"fmt"
 
 	"github.com/bwmarrin/discordgo"
@@ -24,6 +24,15 @@ var CL []Command
 var adminPerms int64 = discordgo.PermissionAdministrator
 var modPerms int64 = discordgo.PermissionManageRoles
 var defaultPerms int64 = discordgo.PermissionUseSlashCommands
+
+func hasPermission(i *discordgo.InteractionCreate, permission int64) bool {
+	if i.Member == nil {
+		return false
+	}
+
+	permissions := i.Member.Permissions
+	return permissions&discordgo.PermissionAdministrator != 0 || permissions&permission != 0
+}
 
 func RegisterCommands(s *discordgo.Session) {
 	CL = cmds

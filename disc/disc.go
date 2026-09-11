@@ -1,7 +1,7 @@
 package disc
 
 import (
-	"RoleKeeper/cwlog"
+	"RoleBot/cwlog"
 	"fmt"
 	"strings"
 

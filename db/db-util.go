@@ -1,9 +1,9 @@
 package db
 
 import (
-	"RoleKeeper/cons"
-	"RoleKeeper/cwlog"
-	"RoleKeeper/disc"
+	"RoleBot/cons"
+	"RoleBot/cwlog"
+	"RoleBot/disc"
 	"bytes"
 	"compress/zlib"
 	"fmt"
@@ -17,16 +17,16 @@ import (
 // Current time in compact format
 func NowToCompact() uint32 {
 	tNow := time.Now().UTC().Unix()
-	return uint32(tNow - cons.RoleKeeperEpoch)
+	return uint32(tNow - cons.RoleBotEpoch)
 }
 
 // Compact format to unix time
 func CompactToUnix(input uint32) uint64 {
-	return uint64(input) + cons.RoleKeeperEpoch
+	return uint64(input) + cons.RoleBotEpoch
 }
 
 func UnixToCompact(input uint64) uint32 {
-	return uint32(input - cons.RoleKeeperEpoch)
+	return uint32(input - cons.RoleBotEpoch)
 }
 
 func IntToSnowflake(id uint64) string {

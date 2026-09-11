@@ -1,7 +1,7 @@
 package db
 
 import (
-	"RoleKeeper/cons"
+	"RoleBot/cons"
 	"sync"
 )
 
@@ -28,7 +28,6 @@ var (
 	LID_TOP         uint32 = 0
 	GuildLookup     map[uint64]*GuildData
 	GuildLookupLock sync.RWMutex
-	ThreadCount     int
 
 	Database [cons.MaxGuilds]*GuildData
 )

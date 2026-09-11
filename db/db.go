@@ -1,8 +1,8 @@
 package db
 
 import (
-	"RoleKeeper/cons"
-	"RoleKeeper/cwlog"
+	"RoleBot/cons"
+	"RoleBot/cwlog"
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
@@ -12,8 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/remeh/sizedwaitgroup"
 )
 
 func WriteLIDTop() {
@@ -35,8 +33,10 @@ func WriteLIDTop() {
 func ReadLIDTop() int64 {
 	data, err := os.ReadFile("data/db/" + cons.LIDTopFile)
 	if err != nil {
-		cwlog.DoLog("Unable to read LIDTop file, exiting")
-		os.Exit(1)
+		if os.IsNotExist(err) {
+			return 0
+		}
+		cwlog.DoLog("Unable to read LIDTop file: " + err.Error())
 		return -1
 	}
 	splitData := strings.Split(string(data), ":")
@@ -48,8 +48,7 @@ func ReadLIDTop() int64 {
 		intVal, err := strconv.ParseUint(cleanVal, 10, 32)
 
 		if err != nil {
-			cwlog.DoLog("Unable to parse LIDTop value, exiting")
-			os.Exit(1)
+			cwlog.DoLog("Unable to parse LIDTop value: " + err.Error())
 			return -1
 		}
 
@@ -87,18 +86,14 @@ const staticSize = LID_size +
 	DONOR_size +
 	NUMROLE_size
 
-const clusterSize = (VERSION_size + ((staticSize + MAXROLE_size) * (cons.MaxGuilds / cons.NumClusters)))
-
 func WriteCluster(i int) {
+	maxGuildsPerCluster := cons.MaxGuilds / cons.NumClusters
+	maxPersistedRoles := min(cons.LimitRoles, MAXROLES)
+	buf := make([]byte, 0, VERSION_size+(staticSize+SNOWFLAKE_size*maxPersistedRoles)*maxGuildsPerCluster)
+	buf = binary.LittleEndian.AppendUint16(buf, 1) // version number
 
-	var buf [clusterSize]byte
-
-	var b int64
-	binary.LittleEndian.PutUint16(buf[b:], 1) //version number
-	b += 2
-
-	start := i*(cons.MaxGuilds/cons.NumClusters) + 1
-	end := start + (cons.MaxGuilds / cons.NumClusters)
+	start := i*maxGuildsPerCluster + 1
+	end := start + maxGuildsPerCluster
 	for x := start; x < end; x++ {
 
 		g := Database[x]
@@ -107,32 +102,24 @@ func WriteCluster(i int) {
 		}
 
 		Database[x].Lock.RLock()
-		binary.LittleEndian.PutUint32(buf[b:], g.LID)
-		b += 4
-		binary.LittleEndian.PutUint64(buf[b:], g.Guild)
-		b += 8
-		binary.LittleEndian.PutUint32(buf[b:], g.Added)
-		b += 4
-		buf[b] = g.Donator
-		b += 1
+		buf = binary.LittleEndian.AppendUint32(buf, g.LID)
+		buf = binary.LittleEndian.AppendUint64(buf, g.Guild)
+		buf = binary.LittleEndian.AppendUint32(buf, g.Added)
+		buf = append(buf, g.Donator)
 
-		numRoles := uint16(len(g.Roles))
-		binary.LittleEndian.PutUint16(buf[b:], numRoles)
-		b += 2
+		numRoles := min(len(g.Roles), MAXROLES)
+		buf = binary.LittleEndian.AppendUint16(buf, uint16(numRoles))
 
-		for c, role := range g.Roles {
-			if c < MAXROLES {
-				binary.LittleEndian.PutUint64(buf[b:], role.ID)
-				b += 8
-			}
+		for _, role := range g.Roles[:numRoles] {
+			buf = binary.LittleEndian.AppendUint64(buf, role.ID)
 		}
 
 		Database[x].Lock.RUnlock()
 	}
 	/* Don't write empty files */
-	if b > VERSION_size {
+	if len(buf) > VERSION_size {
 		name := fmt.Sprintf("data/db/cluster-%v.dat", i+1)
-		err := os.WriteFile(name+".tmp", buf[0:b], 0644)
+		err := os.WriteFile(name+".tmp", buf, 0644)
 		if err != nil && err != fs.ErrNotExist {
 			cwlog.DoLog(err.Error())
 			return
@@ -146,30 +133,21 @@ func WriteCluster(i int) {
 	}
 }
 
-/* TODO: Read whole folder for cluster files, warn if LID_TOP does not match */
-func ReadAllClusters() {
-
-	wg := sizedwaitgroup.New(ThreadCount)
+func ReadAllClusters() bool {
 
 	startTime := time.Now()
 	for x := 0; x < cons.NumClusters; x++ {
-		wg.Add()
-		go func(x int) {
-			ReadCluster(int64(x))
-			wg.Done()
-		}(x)
+		ReadCluster(int64(x))
 	}
-	wg.Wait()
 	endTime := time.Now()
 
 	lid := ReadLIDTop()
-	if lid != int64(LID_TOP) {
-		cwlog.DoLog(fmt.Sprintf("ERROR: LIDTOPFile: %v, LIDTOP: %v\nSTOPPING for 5 minutes!\n", lid, LID_TOP))
-		time.Sleep(time.Second * 300)
-		os.Exit(1)
-		return
+	if lid < 0 || lid != int64(LID_TOP) {
+		cwlog.DoLog(fmt.Sprintf("LIDTop mismatch: file=%v, database=%v", lid, LID_TOP))
+		return false
 	}
 	cwlog.DoLog("Read all clusters, took: " + endTime.Sub(startTime).String())
+	return true
 }
 
 func ReadCluster(i int64) {
@@ -193,6 +171,11 @@ func ReadCluster(i int64) {
 	b += 2
 	if version == 1 {
 		for b < dataLen {
+			if dataLen-b < staticSize {
+				cwlog.DoLog("Cluster record is truncated: " + name)
+				return
+			}
+
 			g := new(GuildData)
 
 			g.LID = binary.LittleEndian.Uint32(data[b:])
@@ -206,6 +189,11 @@ func ReadCluster(i int64) {
 
 			numRoles := binary.LittleEndian.Uint16(data[b:])
 			b += 2
+			rolesSize := int64(numRoles) * SNOWFLAKE_size
+			if dataLen-b < rolesSize {
+				cwlog.DoLog("Cluster roles are truncated: " + name)
+				return
+			}
 
 			if numRoles == 0 {
 				if g.LID >= cons.MaxGuilds {
@@ -295,19 +283,6 @@ func AddGuild(guildid uint64) {
 }
 
 func DumpGuilds() {
-
-	fo, err := os.Create("data/" + cons.DumpName)
-	if err != nil {
-		cwlog.DoLog("Couldn't open db file, skipping...")
-		return
-	}
-	/*  close fo on exit and check for its returned error */
-	defer func() {
-		if err := fo.Close(); err != nil {
-			panic(err)
-		}
-	}()
-
 	GuildLookupLock.RLock()
 
 	cwlog.DoLog("DumpGuilds: Writing guilds...")
@@ -324,7 +299,7 @@ func DumpGuilds() {
 
 	nfilename := "data/" + cons.DumpName + ".tmp"
 	//compBuf := compressZip(outbuf.Bytes())
-	err = os.WriteFile(nfilename, outbuf.Bytes(), 0644)
+	err := os.WriteFile(nfilename, outbuf.Bytes(), 0644)
 
 	if err != nil {
 		cwlog.DoLog("DumpGuilds: Couldn't write db temp file.")

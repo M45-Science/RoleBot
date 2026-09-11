@@ -1,10 +1,10 @@
 package command
 
 import (
-	"RoleKeeper/cfg"
-	"RoleKeeper/cwlog"
-	"RoleKeeper/db"
-	"RoleKeeper/disc"
+	"RoleBot/cfg"
+	"RoleBot/cwlog"
+	"RoleBot/db"
+	"RoleBot/disc"
 	"fmt"
 
 	"github.com/bwmarrin/discordgo"
@@ -22,9 +22,9 @@ func SlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	/* Handle componet-responses */
+	/* Handle component responses. */
 	if i.Type == discordgo.InteractionMessageComponent {
-		handleComponet(s, i)
+		handleComponent(s, i)
 		return
 	} else if i.Type != discordgo.InteractionApplicationCommand {
 		return
@@ -52,10 +52,10 @@ func SlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	/* Run standard slash commands */
 	for _, c := range cmds {
 		if c.AppCmd.Name == CmdName {
-			if c.AdminOnly && i.Member.Permissions < discordgo.PermissionAdministrator {
+			if c.AdminOnly && !hasPermission(i, discordgo.PermissionAdministrator) {
 				disc.EphemeralResponse(s, i, disc.DiscRed, "ERROR:", "You do not have the necessary permissions to use this command.", false)
 				return
-			} else if c.ModOnly && i.Member.Permissions < discordgo.PermissionManageRoles {
+			} else if c.ModOnly && !hasPermission(i, discordgo.PermissionManageRoles) {
 				disc.EphemeralResponse(s, i, disc.DiscRed, "ERROR:", "You do not have the necessary permissions to use this command.", false)
 				return
 			}

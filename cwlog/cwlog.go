@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"time"
 
-	"RoleKeeper/glob"
+	"RoleBot/glob"
 )
 
 func DoLog(text string) {
