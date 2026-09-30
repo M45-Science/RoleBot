@@ -6,7 +6,7 @@ roles are available for self-assignment.
 
 ## Requirements
 
-- Go 1.25 or newer
+- Go 1.26.0 or newer
 - A Discord application and bot token
 - The bot invited with the `applications.commands` and `bot` scopes, plus the
   **Manage Roles** permission
